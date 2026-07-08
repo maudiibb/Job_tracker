@@ -2,6 +2,8 @@ from sqlalchemy.orm import Session
 from app import models, schemas
 from app.models import Company, Application
 
+
+
 def get_company(db: Session, company_id: int):
     result = db.query(Company).filter(Company.id == company_id ).first()
     return result
@@ -25,8 +27,11 @@ def create_company(db: Session, company: schemas.CompanyCreate):
 
 def delete_company(db: Session, company_id: int):
     result = db.query(Company).filter(Company.id == company_id ).first()
+    linked_application =  db.query(Application).filter(Application.company_id == company_id).first()
     if result is None:
         return None
+    elif linked_application is not None:
+        return(f"Unable to delete company {company_id} because it is attached to {linked_application.role_title}")
     else:
         company_name = result.name
         db.delete(result)

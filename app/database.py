@@ -2,9 +2,10 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
 # Vi använder SQLite till att börja med - det är en enda fil, ingen server behövs.
-# Bra för utveckling, du kan byta till PostgreSQL senare utan att ändra resten av koden nämnvärt.
+# Kan byta till PostgreSQL senare utan att ändra resten av koden nämnvärt.
 SQLALCHEMY_DATABASE_URL = "sqlite:///./jobbtracker.db"
 
+#
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
     connect_args={"check_same_thread": False}  # krävs specifikt för SQLite
