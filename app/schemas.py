@@ -38,3 +38,6 @@ class Application(ApplicationBase):
 
     class Config:
         from_attributes = True
+
+class CompanyWithApplications(Company):
+    applications: list[Application] = []

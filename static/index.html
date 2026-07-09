@@ -33,8 +33,18 @@
                             <td>${company.industry}</td>
                         </tr>
                     `;
+
+                    for (const app of company.applications) {
+                        tbody.innerHTML += `
+                            <tr>
+                                <td></td>
+                                <td colspan="3">↳ ${app.role_title} (${app.status}) — ${app.source}</td>
+                            </tr>
+                        `;
+                    }
                 }
             }
+
             loadCompanies();
     </script>
 </body>

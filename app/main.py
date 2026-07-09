@@ -19,7 +19,7 @@ def creat_company_endpoint(company: schemas.CompanyCreate,
                            db: Session = Depends(get_db)):
     return crud.create_company(db, company)
 
-@app.get("/companies/", response_model=List[Company])
+@app.get("/companies/", response_model=List[schemas.CompanyWithApplications])
 def get_companies_endpoint(skip: int = 0, limit: int = 100, 
                             db: Session = Depends(get_db)):
     return crud.get_companies(db, skip, limit)
