@@ -5,6 +5,23 @@
     <title>Job Tracker</title>
 </head>
     <body>
+        <h2>Lägg till/Redigera företag</h2>
+            <form id="companyForm">
+                <input type="text" id="name" placeholder="Namn" required>
+                <input type="text" id="website" placeholder="Website">
+                <input type="text" id="industry" placeholder="Industry">
+                <button type="submit" id="companySubmitBtn">Lägg till</button>
+            </form>
+        <h2>Lägg till/Redigera ansökan</h2>
+            <form id="applicationForm">
+                <input type="number" id="app_company_id" placeholder="Company ID" required>
+                <input type="text" id="role_title" placeholder="Roll/titel" required>
+                <input type="text" id="status" placeholder="Status (t.ex. saved)">
+                <input type="date" id="applied_date">
+                <input type="text" id="source" placeholder="Källa (t.ex. LinkedIn)">
+                <input type="text" id="job_url" placeholder="Job URL">
+                <button type="submit" id="applicationSubmitBtn">Lägg till ansökan</button>
+            </form>
         <table border="1">
             <thead>
                 <tr>
@@ -12,12 +29,15 @@
                     <th>Namn</th>
                     <th>Website</th>
                     <th>Industry</th>
+                    <th>Åtgärd</th>
                 </tr>
             </thead>
             <tbody id="companiesBody">
             </tbody>
         </table>
         <script>
+            let editingCompanyId = null;
+            let editingApplicationId = null;
             async function loadCompanies() {
                 const response = await fetch('/companies/');
                 const data = await response.json();
@@ -31,6 +51,10 @@
                             <td>${company.name}</td>
                             <td>${company.website}</td>
                             <td>${company.industry}</td>
+                            <td>
+                                <button onclick="deleteCompany(${company.id})">Ta bort</button>
+                                <button onclick="editCompany(${company.id}, '${company.name}', '${company.website}', '${company.industry}')">Redigera</button>
+                            </td>
                         </tr>
                     `;
 
@@ -39,12 +63,122 @@
                             <tr>
                                 <td></td>
                                 <td colspan="3">↳ ${app.role_title} (${app.status}) — ${app.source}</td>
+                                <td>
+                                    <button onclick="deleteApplication(${app.id})">Ta bort</button>
+                                    <button onclick="editApplication(${app.id}, ${company.id}, '${app.role_title}', '${app.status}', '${app.applied_date}', '${app.source}', '${app.job_url}')">Redigera</button>
+                                </td>
                             </tr>
                         `;
                     }
                 }
             }
+            async function deleteCompany(id) {
+                await fetch(`/companies/${id}`, {
+                    method: 'DELETE'
+                });
 
+                document.getElementById('companiesBody').innerHTML = '';
+                loadCompanies();
+            }
+            
+            function editCompany(id, name, website, industry) {
+                document.getElementById('name').value = name;
+                document.getElementById('website').value = website;
+                document.getElementById('industry').value = industry;
+                editingCompanyId = id;
+                document.getElementById('companySubmitBtn').textContent = 'Spara ändring';
+            }
+            async function deleteApplication(id) {
+                await fetch(`/applications/${id}`, {
+                    method: 'DELETE'
+                });
+
+                document.getElementById('companiesBody').innerHTML = '';
+                loadCompanies();
+            }
+            function editApplication(id, companyId, role_title, status, applied_date, source, job_url) {
+                document.getElementById('app_company_id').value = companyId;
+                document.getElementById('role_title').value = role_title;
+                document.getElementById('status').value = status;
+                document.getElementById('applied_date').value = (applied_date === 'null') ? '' : applied_date;
+                document.getElementById('source').value = source;
+                document.getElementById('job_url').value = job_url;
+
+                editingApplicationId = id;
+                document.getElementById('applicationSubmitBtn').textContent = 'Spara ändring';
+            }
+                document.getElementById('companyForm').addEventListener('submit', async function(event) {
+                    event.preventDefault();
+
+                    const name = document.getElementById('name').value;
+                    const website = document.getElementById('website').value;
+                    const industry = document.getElementById('industry').value;
+
+                    if (editingCompanyId === null) {
+                        // Skapa ny company (som innan)
+                        await fetch('/companies/', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ name: name, website: website, industry: industry })
+                        });
+                    } else {
+                        // Uppdatera befintlig company
+                        await fetch(`/companies/${editingCompanyId}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ name: name, website: website, industry: industry })
+                        });
+
+                        editingCompanyId = null;  // återställ flaggan
+                        document.getElementById('companySubmitBtn').textContent = 'Lägg till';
+                    }
+
+                    document.getElementById('companyForm').reset();
+                    document.getElementById('companiesBody').innerHTML = '';
+                    loadCompanies();
+
+            });
+            document.getElementById('applicationForm').addEventListener('submit', async function(event) {
+                event.preventDefault();
+
+                const company_id = parseInt(document.getElementById('app_company_id').value);
+                const role_title = document.getElementById('role_title').value;
+                const status = document.getElementById('status').value;
+                const applied_date = document.getElementById('applied_date').value;
+                const source = document.getElementById('source').value;
+                const job_url = document.getElementById('job_url').value;
+
+                const payload = {
+                    company_id: company_id,
+                    role_title: role_title,
+                    status: status || 'saved',
+                    applied_date: applied_date || null,
+                    source: source,
+                    job_url: job_url
+                };
+
+                if (editingApplicationId === null) {
+                    await fetch('/applications/', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                } else {
+                    await fetch(`/applications/${editingApplicationId}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    editingApplicationId = null;
+                    document.getElementById('applicationSubmitBtn').textContent = 'Lägg till ansökan';
+                }
+
+                document.getElementById('applicationForm').reset();
+                document.getElementById('companiesBody').innerHTML = '';
+                loadCompanies();
+            });
+                
             loadCompanies();
     </script>
 </body>
