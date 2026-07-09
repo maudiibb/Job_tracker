@@ -4,9 +4,15 @@ from app import crud, models, schemas
 from app.schemas import Company, Application
 from app.database import get_db
 from typing import List
-
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse    
 
 app = FastAPI()
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+@app.get("/")
+def read_index():
+    return FileResponse("static/index.html")
 
 @app.post("/companies/", response_model=Company)
 def creat_company_endpoint(company: schemas.CompanyCreate, 
