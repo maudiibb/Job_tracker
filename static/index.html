@@ -5,23 +5,42 @@
     <title>Job Tracker</title>
 </head>
     <body>
-        <h2>Lägg till/Redigera företag</h2>
+        <h4>Lägg till/Redigera företag</h4>
             <form id="companyForm">
                 <input type="text" id="name" placeholder="Namn" required>
                 <input type="text" id="website" placeholder="Website">
                 <input type="text" id="industry" placeholder="Industry">
                 <button type="submit" id="companySubmitBtn">Lägg till</button>
             </form>
-        <h2>Lägg till/Redigera ansökan</h2>
+        <h4>Lägg till/Redigera ansökan</h4>
             <form id="applicationForm">
                 <input type="number" id="app_company_id" placeholder="Company ID" required>
                 <input type="text" id="role_title" placeholder="Roll/titel" required>
-                <input type="text" id="status" placeholder="Status (t.ex. saved)">
+                <select id="status">
+                    <option value="saved">Saved</option>
+                    <option value="sent">Sent</option>
+                    <option value="interview">Interview</option>
+                    <option value="rejected">Rejected</option>
+                    <option value="offer">Offer</option>
+                </select>
                 <input type="date" id="applied_date">
                 <input type="text" id="source" placeholder="Källa (t.ex. LinkedIn)">
                 <input type="text" id="job_url" placeholder="Job URL">
                 <button type="submit" id="applicationSubmitBtn">Lägg till ansökan</button>
             </form>
+        <h2>Sök</h2>
+            <div>
+                <input type="text" id="searchInput" placeholder="Sök (namn, roll, källa)...">
+                <select id="statusFilter">
+                    <option value="">Alla statusar</option>
+                    <option value="saved">Saved</option>
+                    <option value="sent">Sent</option>
+                    <option value="interview">Interview</option>
+                    <option value="rejected">Rejected</option>
+                    <option value="offer">Offer</option>
+                </select>
+            </div>
+        <h2>Tabell</h2>
         <table border="1">
             <thead>
                 <tr>
@@ -29,6 +48,9 @@
                     <th>Namn</th>
                     <th>Website</th>
                     <th>Industry</th>
+                    <th>Datum</th>
+                    <th>Källa</th>
+                    <th>Länk</th>
                     <th>Åtgärd</th>
                 </tr>
             </thead>
@@ -36,48 +58,23 @@
             </tbody>
         </table>
         <script>
+            let allCompanies = [];
             let editingCompanyId = null;
             let editingApplicationId = null;
             async function loadCompanies() {
                 const response = await fetch('/companies/');
                 const data = await response.json();
-
-                const tbody = document.getElementById('companiesBody');
-
-                for (const company of data) {
-                    tbody.innerHTML += `
-                        <tr>
-                            <td>${company.id}</td>
-                            <td>${company.name}</td>
-                            <td>${company.website}</td>
-                            <td>${company.industry}</td>
-                            <td>
-                                <button onclick="deleteCompany(${company.id})">Ta bort</button>
-                                <button onclick="editCompany(${company.id}, '${company.name}', '${company.website}', '${company.industry}')">Redigera</button>
-                            </td>
-                        </tr>
-                    `;
-
-                    for (const app of company.applications) {
-                        tbody.innerHTML += `
-                            <tr>
-                                <td></td>
-                                <td colspan="3">↳ ${app.role_title} (${app.status}) — ${app.source}</td>
-                                <td>
-                                    <button onclick="deleteApplication(${app.id})">Ta bort</button>
-                                    <button onclick="editApplication(${app.id}, ${company.id}, '${app.role_title}', '${app.status}', '${app.applied_date}', '${app.source}', '${app.job_url}')">Redigera</button>
-                                </td>
-                            </tr>
-                        `;
-                    }
-                }
+                allCompanies = data;
+                applyFilters();
+               
             }
+            
             async function deleteCompany(id) {
                 await fetch(`/companies/${id}`, {
                     method: 'DELETE'
                 });
 
-                document.getElementById('companiesBody').innerHTML = '';
+                
                 loadCompanies();
             }
             
@@ -93,7 +90,7 @@
                     method: 'DELETE'
                 });
 
-                document.getElementById('companiesBody').innerHTML = '';
+                
                 loadCompanies();
             }
             function editApplication(id, companyId, role_title, status, applied_date, source, job_url) {
@@ -134,10 +131,22 @@
                     }
 
                     document.getElementById('companyForm').reset();
-                    document.getElementById('companiesBody').innerHTML = '';
+                    
                     loadCompanies();
 
             });
+            function prefillFromQuery() {
+                const params = new URLSearchParams(window.location.search);
+                const url = params.get('prefill_url');
+                const date = params.get('prefill_date');
+
+                if (url) {
+                    document.getElementById('job_url').value = url;
+                }
+                if (date) {
+                    document.getElementById('applied_date').value = date;
+                }
+            }
             document.getElementById('applicationForm').addEventListener('submit', async function(event) {
                 event.preventDefault();
 
@@ -158,28 +167,105 @@
                 };
 
                 if (editingApplicationId === null) {
-                    await fetch('/applications/', {
+                    const response = await fetch('/applications/', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(payload)
                     });
+                    const result = await response.json();
+
+                    if (response.status === 409) {
+                        alert(result.detail);
+                        return;
+                    }
+
+                    if (result.warning) {
+                        alert(result.warning);
+                    }
                 } else {
                     await fetch(`/applications/${editingApplicationId}`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(payload)
-                    });
+            });
 
-                    editingApplicationId = null;
-                    document.getElementById('applicationSubmitBtn').textContent = 'Lägg till ansökan';
-                }
+                editingApplicationId = null;
+                document.getElementById('applicationSubmitBtn').textContent = 'Lägg till ansökan';
+            }
 
                 document.getElementById('applicationForm').reset();
-                document.getElementById('companiesBody').innerHTML = '';
                 loadCompanies();
             });
-                
-            loadCompanies();
+            function renderTable(companies) {
+                const tbody = document.getElementById('companiesBody');
+                tbody.innerHTML = '';
+
+                for (const company of companies) {
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>${company.id}</td>
+                            <td>${company.name}</td>
+                            <td>${company.website}</td>
+                            <td>${company.industry}</td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td>
+                                <button onclick="deleteCompany(${company.id})">Ta bort</button>
+                                <button onclick="editCompany(${company.id}, '${company.name}', '${company.website}', '${company.industry}')">Redigera</button>
+                            </td>
+                        </tr>
+                    `;
+
+                    for (const app of company.applications) {
+                        const linkCell = app.job_url ? `<a href="${app.job_url}" target="_blank">Länk</a>` : '';
+                        const dateCell = (app.applied_date && app.applied_date !== 'null') ? app.applied_date : '';
+
+                        tbody.innerHTML += `
+                            <tr>
+                                <td></td>
+                                <td colspan="3">↳ ${app.role_title} (${app.status})</td>
+                                <td>${dateCell}</td>
+                                <td>${app.source || ''}</td>
+                                <td>${linkCell}</td>
+                                <td>
+                                    <button onclick="deleteApplication(${app.id})">Ta bort</button>
+                                    <button onclick="editApplication(${app.id}, ${company.id}, '${app.role_title}', '${app.status}', '${app.applied_date}', '${app.source}', '${app.job_url}')">Redigera</button>
+                                </td>
+                            </tr>
+                        `}}};
+
+            function applyFilters() {
+                const searchText = document.getElementById('searchInput').value.toLowerCase();
+                const statusValue = document.getElementById('statusFilter').value;
+
+                const filtered = allCompanies
+                    .map(company => {
+                        const filteredApps = company.applications.filter(app => {
+                            const matchesStatus = !statusValue || app.status === statusValue;
+                            const matchesSearch = !searchText ||
+                                company.name.toLowerCase().includes(searchText) ||
+                                app.role_title.toLowerCase().includes(searchText) ||
+                                (app.source && app.source.toLowerCase().includes(searchText));
+                            return matchesStatus && matchesSearch;
+                        });
+
+                        const companyMatches = !searchText || company.name.toLowerCase().includes(searchText);
+
+                        // Visa företaget om det matchar sökningen ELLER om det har matchande ansökningar
+                        if (filteredApps.length > 0 || (companyMatches && !statusValue)) {
+                            return { ...company, applications: filteredApps };
+                        }
+                        return null;
+                    })
+                    .filter(company => company !== null);
+
+                renderTable(filtered);
+            }     
+        document.getElementById('searchInput').addEventListener('input', applyFilters);
+        document.getElementById('statusFilter').addEventListener('change', applyFilters);
+        loadCompanies();
+        prefillFromQuery();
     </script>
 </body>
 </html>

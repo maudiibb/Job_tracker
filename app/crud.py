@@ -3,6 +3,16 @@ from app import models, schemas
 from app.models import Company, Application
 
 
+def existing_application(db: Session, job_url: str):  
+    if job_url == '':
+        return None
+    else:
+        result = db.query(Application).filter(Application.job_url == job_url).first()
+        return result
+
+def similar_application(db:Session, company_id: int, role_title:str):
+    result = db.query(Application).filter(Application.company_id == company_id, Application.role_title.ilike(role_title)).all()
+    return result
 
 def get_company(db: Session, company_id: int):
     result = db.query(Company).filter(Company.id == company_id ).first()

@@ -35,6 +35,7 @@ class ApplicationCreate(ApplicationBase):
 class Application(ApplicationBase):
     id: int
     company_id: int
+    warning: str | None = None
 
     class Config:
         from_attributes = True

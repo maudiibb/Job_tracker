@@ -1,4 +1,4 @@
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy.orm import Session
 from app import crud, models, schemas
 from app.schemas import Company, Application
@@ -43,7 +43,25 @@ def update_company_endpoint(company_id : int,
 @app.post("/applications/", response_model=Application)
 def creat_application_endpoint(application: schemas.ApplicationCreate, 
                            db: Session = Depends(get_db)):
-    return crud.create_application(db, application)
+    if application.job_url:
+        duplicate = crud.existing_application(db, application.job_url)
+        if duplicate:
+            raise HTTPException(
+                status_code=409,
+                detail=f"En ansökan med denna URL finns redan (ID {duplicate.id}, {duplicate.role_title})."
+            )
+
+    similar = crud.similar_application(db, application.company_id, application.role_title)
+
+    new_application = crud.create_application(db, application)
+
+    if similar:
+        return {
+            **new_application.__dict__,
+            "warning": f"Liknande ansökan hittades redan hos detta företag (ID {similar[0].id})."
+        }
+
+    return new_application
 
 @app.get("/applications/", response_model=List[Application])
 def get_applications_endpoint(skip: int = 0, limit: int = 100, 
